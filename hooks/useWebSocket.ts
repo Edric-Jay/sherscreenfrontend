@@ -29,7 +29,7 @@ export function useWebSocket(roomId: string, userId: string, isHost = false) {
   const [participants, setParticipants] = useState(1)
   const wsRef = useRef<WebSocket | null>(null)
   const messageHandlers = useRef<((message: SignalingMessage) => void)[]>([])
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout>()
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const reconnectAttempts = useRef(0)
   const maxReconnectAttempts = 5
 
