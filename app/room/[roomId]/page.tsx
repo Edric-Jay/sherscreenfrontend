@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Monitor, MonitorOff, Users, Copy, Check, Wifi, WifiOff, RefreshCw } from "lucide-react"
-import { useWebSocket, type SignalingMessage } from "@/hooks/useWebSocket" // Import SignalingMessage from the hook
+import { useWebSocket } from "@/hooks/useWebSocket" // Import SignalingMessage from the hook
 
 export default function RoomPage() {
   const params = useParams()
@@ -173,7 +173,7 @@ export default function RoomPage() {
     })
   }
 
-  const handleSignalingMessage = (message: SignalingMessage) => {
+  const handleSignalingMessage = (message: any) => {
     if (message.from === userId.current) return // Ignore own messages
     console.log("🔄 Processing WebSocket message:", message.type, "from:", message.from)
 
@@ -319,14 +319,6 @@ export default function RoomPage() {
               console.error("❌ No peer connection found for ICE candidate")
             }
           }
-          break
-        // Handle additional message types from the WebSocket hook
-        case "join-room":
-        case "participant-count":
-        case "welcome":
-        case "error":
-          // These messages are handled by the useWebSocket hook
-          console.log(`📝 Received ${message.type} message, handled by hook`)
           break
       }
     } catch (error) {
