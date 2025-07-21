@@ -118,7 +118,6 @@ export default function RoomPage() {
       console.log("🎬 Starting screen share...")
       const stream = await navigator.mediaDevices.getDisplayMedia({
         video: {
-          mediaSource: "screen" as any,
           width: { ideal: 1920, max: 1920 },
           height: { ideal: 1080, max: 1080 },
           frameRate: { ideal: 30, max: 60 },
@@ -352,7 +351,7 @@ export default function RoomPage() {
   useEffect(() => {
     addMessageHandler(handleSignalingMessage)
     return () => removeMessageHandler(handleSignalingMessage)
-  }, [addMessageHandler, removeMessageHandler, handleSignalingMessage])
+  }, [isHost, isSharing])
 
   // Set up viewer video when stream is received
   useEffect(() => {
