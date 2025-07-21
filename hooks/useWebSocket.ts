@@ -63,8 +63,8 @@ export function useWebSocket(roomId: string, userId: string, isHost = false) {
       // Use proper WebSocket protocol - wss:// for secure connections
       const wsUrl =
         process.env.NODE_ENV === "production"
-          ? "wss://sharescreen-bo3d.onrender.com"
-          : "wss://sharescreen-bo3d.onrender.com"
+          ? "https://sharescreen-bo3d.onrender.com"
+          : "https://sharescreen-bo3d.onrender.com"
 
       console.log("🔌 Connecting to WebSocket server:", wsUrl)
       wsRef.current = new WebSocket(wsUrl)
