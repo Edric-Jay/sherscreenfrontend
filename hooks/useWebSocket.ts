@@ -61,7 +61,7 @@ export function useWebSocket(roomId: string, userId: string, isHost = false) {
   const connect = () => {
     try {
       // Use localhost for development - in production, use your WebSocket server URL
-      const wsUrl = process.env.NODE_ENV === "production" ? "wss://your-websocket-server.com" : "http://localhost:8080"
+      const wsUrl = process.env.NODE_ENV === "production" ? "https://sharescreen-bo3d.onrender.com" : "https://sharescreen-bo3d.onrender.com"
 
       console.log("🔌 Connecting to WebSocket server:", wsUrl)
       wsRef.current = new WebSocket(wsUrl)
