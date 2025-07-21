@@ -6,31 +6,19 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Monitor, MonitorOff, Users, Copy, Check, Wifi, WifiOff, RefreshCw } from "lucide-react"
-import { useWebSocket } from "@/hooks/useWebSocket"
-
-interface SignalingMessage {
-  type: "offer" | "answer" | "ice-candidate" | "host-sharing" | "host-stopped" | "user-joined" | "user-left"
-  data?: any
-  from?: string
-  to?: string
-  roomId?: string
-  isHost?: boolean
-}
+import { useWebSocket, type SignalingMessage } from "@/hooks/useWebSocket" // Import SignalingMessage from the hook
 
 export default function RoomPage() {
   const params = useParams()
   const searchParams = useSearchParams()
-
   const roomId = params.roomId as string
   const isHost = searchParams.get("host") === "true"
   const userId = useRef(Math.random().toString(36).substring(2, 15))
-
   const [isSharing, setIsSharing] = useState(false)
   const [copied, setCopied] = useState(false)
   const [hostIsSharing, setHostIsSharing] = useState(false)
   const [viewerStream, setViewerStream] = useState<MediaStream | null>(null)
   const [connectionStatus, setConnectionStatus] = useState<"connecting" | "connected" | "failed">("connecting")
-
   const videoRef = useRef<HTMLVideoElement>(null)
   const viewerVideoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
@@ -45,7 +33,6 @@ export default function RoomPage() {
 
   const createPeerConnection = (targetUserId: string) => {
     console.log(`🔗 Creating peer connection with ${targetUserId}`)
-
     const pc = new RTCPeerConnection({
       iceServers: [
         { urls: "stun:stun.l.google.com:19302" },
@@ -92,7 +79,6 @@ export default function RoomPage() {
         const stream = event.streams[0]
         setViewerStream(stream)
         setConnectionStatus("connected")
-
         // Immediately assign to video element
         setTimeout(() => {
           if (viewerVideoRef.current) {
@@ -132,7 +118,6 @@ export default function RoomPage() {
       console.log("📺 Screen capture stream obtained:", stream)
       console.log("📺 Video tracks:", stream.getVideoTracks())
       console.log("📺 Audio tracks:", stream.getAudioTracks())
-
       streamRef.current = stream
       setIsSharing(true)
 
@@ -144,7 +129,6 @@ export default function RoomPage() {
       }
 
       console.log("📡 Notifying viewers that host started sharing")
-
       // Notify all viewers via WebSocket that host started sharing
       sendMessage({
         type: "host-sharing",
@@ -162,7 +146,6 @@ export default function RoomPage() {
 
   const stopScreenShare = () => {
     console.log("🛑 Stopping screen share")
-
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => {
         track.stop()
@@ -190,9 +173,8 @@ export default function RoomPage() {
     })
   }
 
-  const handleSignalingMessage = async (message: SignalingMessage) => {
+  const handleSignalingMessage = (message: SignalingMessage) => {
     if (message.from === userId.current) return // Ignore own messages
-
     console.log("🔄 Processing WebSocket message:", message.type, "from:", message.from)
 
     try {
@@ -209,7 +191,6 @@ export default function RoomPage() {
             }, 1000)
           }
           break
-
         case "user-left":
           console.log("👋 User left:", message.from)
           // Clean up peer connection if exists
@@ -219,14 +200,12 @@ export default function RoomPage() {
             peerConnections.current.delete(message.from!)
           }
           break
-
         case "host-sharing":
           console.log("📺 Host started sharing via WebSocket")
           if (!isHost) {
             console.log("👀 Viewer detected host sharing, initiating connection")
             setHostIsSharing(true)
             setConnectionStatus("connecting")
-
             // Create peer connection and send offer
             setTimeout(async () => {
               try {
@@ -250,7 +229,6 @@ export default function RoomPage() {
             }, 500)
           }
           break
-
         case "host-stopped":
           console.log("🛑 Host stopped sharing via WebSocket")
           if (!isHost) {
@@ -268,64 +246,87 @@ export default function RoomPage() {
             }
           }
           break
-
         case "offer":
           console.log("📥 Received offer via WebSocket from:", message.from, "to:", message.to)
           if (isHost && message.to === userId.current) {
             const pc = createPeerConnection(message.from!)
-
             console.log("📺 Setting remote description and adding stream tracks")
-            await pc.setRemoteDescription(new RTCSessionDescription(message.data))
+            pc.setRemoteDescription(new RTCSessionDescription(message.data))
+              .then(() => {
+                // Add the screen share stream to the connection
+                if (streamRef.current) {
+                  console.log("📺 Adding stream tracks to peer connection")
+                  streamRef.current.getTracks().forEach((track) => {
+                    console.log("📺 Adding track:", track.kind, track.label)
+                    pc.addTrack(track, streamRef.current!)
+                  })
+                } else {
+                  console.warn("⚠️ No stream available to add to peer connection")
+                }
 
-            // Add the screen share stream to the connection
-            if (streamRef.current) {
-              console.log("📺 Adding stream tracks to peer connection")
-              streamRef.current.getTracks().forEach((track) => {
-                console.log("📺 Adding track:", track.kind, track.label)
-                pc.addTrack(track, streamRef.current!)
+                console.log("📤 Creating and sending answer")
+                return pc.createAnswer()
               })
-            } else {
-              console.warn("⚠️ No stream available to add to peer connection")
-            }
-
-            console.log("📤 Creating and sending answer")
-            const answer = await pc.createAnswer()
-            await pc.setLocalDescription(answer)
-
-            sendMessage({
-              type: "answer",
-              data: answer,
-              to: message.from,
-            })
-            console.log("📤 Answer sent to viewer")
+              .then((answer) => {
+                return pc.setLocalDescription(answer).then(() => answer)
+              })
+              .then((answer) => {
+                sendMessage({
+                  type: "answer",
+                  data: answer,
+                  to: message.from,
+                })
+                console.log("📤 Answer sent to viewer")
+              })
+              .catch((error) => {
+                console.error("❌ Error handling offer:", error)
+                setConnectionStatus("failed")
+              })
           }
           break
-
         case "answer":
           console.log("📥 Received answer via WebSocket from:", message.from)
           if (!isHost && message.to === userId.current) {
             const pc = peerConnections.current.get(message.from!)
             if (pc) {
               console.log("📥 Setting remote description from answer")
-              await pc.setRemoteDescription(new RTCSessionDescription(message.data))
-              console.log("✅ Remote description set successfully")
+              pc.setRemoteDescription(new RTCSessionDescription(message.data))
+                .then(() => {
+                  console.log("✅ Remote description set successfully")
+                })
+                .catch((error) => {
+                  console.error("❌ Error setting remote description:", error)
+                  setConnectionStatus("failed")
+                })
             } else {
               console.error("❌ No peer connection found for answer")
             }
           }
           break
-
         case "ice-candidate":
           console.log("🧊 Received ICE candidate from:", message.from, "to:", message.to)
           if (message.to === userId.current) {
             const pc = peerConnections.current.get(message.from!)
             if (pc) {
-              await pc.addIceCandidate(new RTCIceCandidate(message.data))
-              console.log("🧊 ICE candidate added successfully")
+              pc.addIceCandidate(new RTCIceCandidate(message.data))
+                .then(() => {
+                  console.log("🧊 ICE candidate added successfully")
+                })
+                .catch((error) => {
+                  console.error("❌ Error adding ICE candidate:", error)
+                })
             } else {
               console.error("❌ No peer connection found for ICE candidate")
             }
           }
+          break
+        // Handle additional message types from the WebSocket hook
+        case "join-room":
+        case "participant-count":
+        case "welcome":
+        case "error":
+          // These messages are handled by the useWebSocket hook
+          console.log(`📝 Received ${message.type} message, handled by hook`)
           break
       }
     } catch (error) {
@@ -340,6 +341,7 @@ export default function RoomPage() {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch (error) {
+      console.error("Failed to copy room ID:", error)
     }
   }
 
@@ -395,7 +397,6 @@ export default function RoomPage() {
               </div>
             </div>
           </div>
-
           <div className="flex items-center space-x-2">
             {!isConnected && (
               <Button variant="outline" size="sm" onClick={refreshConnection}>
@@ -514,7 +515,6 @@ export default function RoomPage() {
               ))}
             </CardContent>
           </Card>
-
           <Card className="md:col-span-2">
             <CardHeader>
               <CardTitle>Connection Status</CardTitle>
