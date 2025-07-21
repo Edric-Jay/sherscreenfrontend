@@ -352,7 +352,7 @@ export default function RoomPage() {
   useEffect(() => {
     addMessageHandler(handleSignalingMessage)
     return () => removeMessageHandler(handleSignalingMessage)
-  }, [isHost, isSharing])
+  }, [addMessageHandler, removeMessageHandler, handleSignalingMessage])
 
   // Set up viewer video when stream is received
   useEffect(() => {
